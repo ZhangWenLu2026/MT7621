@@ -45,6 +45,15 @@
 	mac-address = [06 15 75 01 33 22];
 };
 
+/* GPIO7 在 MT7621 上默认是 JTAG 功能，必须切回 GPIO，
+ * 否则 gpio-export 申请不到，RTL8367SB 一直处于复位。 */
+&state_default {
+	gpio {
+		groups = "jtag";
+		function = "gpio";
+	};
+};
+
 &spi0 {
 	status = "okay";
 
@@ -71,8 +80,11 @@
 				read-only;
 			};
 
-			/* 与 Breed 的「公版 0x50000」布局严格对齐 */
+			/* 与 Breed 的「公版 0x50000」布局严格对齐。
+			 * compatible = "denx,uimage" 必须保留：内核靠它把这段拆成
+			 * kernel + rootfs，缺了会 panic 在 "Unable to mount root fs"。 */
 			partition@50000 {
+				compatible = "denx,uimage";
 				label = "firmware";
 				reg = <0x50000 0xfb0000>;
 			};

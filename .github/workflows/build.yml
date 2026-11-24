@@ -36,6 +36,8 @@ jobs:
         run: |
           cp src/mt7621_tg_rn1150w.dts owwrt/target/linux/ramips/dts/
           cat src/mt7621.mk.append >> owwrt/target/linux/ramips/image/mt7621.mk
+          mkdir -p owwrt/files
+          cp -r files/etc owwrt/files/
           cd owwrt
           cat > .config <<'EOF'
           CONFIG_TARGET_ramips=y

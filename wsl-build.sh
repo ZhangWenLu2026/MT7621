@@ -34,6 +34,8 @@ cp "$SRC/mt7621_tg_rn1150w.dts" target/linux/ramips/dts/
 if ! grep -q "tg_rn1150w" target/linux/ramips/image/mt7621.mk; then
   cat "$SRC/mt7621.mk.append" >> target/linux/ramips/image/mt7621.mk
 fi
+mkdir -p files
+cp -r /mnt/d/openwrt/openwrt-build/files/etc files/
 
 echo "==> [4/6] 更新 feeds"
 ./scripts/feeds update -a

@@ -1,0 +1,125 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+//
+// TG RN1150W / "MT7621 千兆有线路由器" 8 口白牌机
+// MT7621AT + MT7530(内部 5 口) + RTL8367SB(外挂 3 口, RGMII 级联)
+// RTL8367SB 复位脚 = GPIO7 (厂商内核: "GPIO7 set to high / clear to low")
+//
+// v1: 只驱动 MT7530, 把 5 个 PHY 口 + port5(RGMII 级联口) 全部放进 br-lan,
+//     RTL8367SB 保持出厂默认的"非管理型交换机"状态 -> 它的 3 个口作为
+//     lan6 所在的级联段一起接入同一个二层域。
+
+#include "mt7621.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+
+/ {
+	compatible = "tg,rn1150w", "mediatek,mt7621-soc";
+	model = "TG RN1150W 8-port";
+
+	aliases {
+		label-mac-device = &gmac0;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,57600";
+	};
+
+	/* 释放 RTL8367SB 复位。厂商序列是 拉高->拉低, 即高电平复位、低电平工作。
+	 * 若刷机后发现 lan6 段(外挂 3 口)不通, 先把 output 改成 <1> 试试。 */
+	gpio-export {
+		compatible = "gpio-export";
+		#size-cells = <0>;
+
+		rtl8367_reset {
+			gpio-export,name = "rtl8367-reset";
+			gpio-export,output = <0>;
+			gpios = <&gpio 7 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&gmac0 {
+	/* Breed 里读到的 LAN MAC, 固定住避免每次启动变成随机地址 */
+	mac-address = [06 15 75 01 33 22];
+};
+
+&spi0 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <44000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			/* 0x00000-0x20000 Breed, 0x20000-0x50000 保留 */
+			partition@0 {
+				label = "bootloader";
+				reg = <0x0 0x30000>;
+				read-only;
+			};
+
+			partition@30000 {
+				label = "config";
+				reg = <0x30000 0x20000>;
+				read-only;
+			};
+
+			/* 与 Breed 的「公版 0x50000」布局严格对齐 */
+			partition@50000 {
+				label = "firmware";
+				reg = <0x50000 0xfb0000>;
+			};
+		};
+	};
+};
+
+&switch0 {
+	ports {
+		/* MT7530 的 5 个内置 PHY */
+		port@0 {
+			status = "okay";
+			label = "lan1";
+		};
+
+		port@1 {
+			status = "okay";
+			label = "lan2";
+		};
+
+		port@2 {
+			status = "okay";
+			label = "lan3";
+		};
+
+		port@3 {
+			status = "okay";
+			label = "lan4";
+		};
+
+		port@4 {
+			status = "okay";
+			label = "lan5";
+		};
+
+		/* port5 是 MT7530 的第二个 GMAC(RGMII), 厂商用它级联 RTL8367SB。
+		 * RTL 那边的 3 个 RJ45 就挂在这个口的后面。 */
+		port@5 {
+			status = "okay";
+			reg = <5>;
+			label = "lan6";
+			phy-mode = "rgmii";
+			fixed-link {
+				speed = <1000>;
+				full-duplex;
+				pause;
+			};
+		};
+	};
+};

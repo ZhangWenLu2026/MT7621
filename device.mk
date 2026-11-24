@@ -1,0 +1,10 @@
+
+define Device/tg_rn1150w
+  DEVICE_VENDOR := TG
+  DEVICE_MODEL := RN1150W
+  DEVICE_DTS := mt7621_tg_rn1150w
+  SUPPORTED_DEVICES += tg,rn1150w
+  DEVICE_PACKAGES := -uboot-envtools
+  IMAGE_SIZE := 16064k
+endef
+TARGET_DEVICES += tg_rn1150w

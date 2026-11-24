@@ -1,0 +1,91 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+/*
+ * TG-RN1150W  (白牌 8 口千兆有线路由器)
+ *
+ * 硬件（已从原厂 full.bin 取证）:
+ *   - SoC      : MT7621AT 880MHz, 512MB DDR3
+ *   - Flash    : Winbond W25Q128 16MB, SPI @44MHz
+ *   - 交换     : 内部 MT7530 (5 口)  +  外置 Realtek RTL8367SB (RGMII)
+ *   - RTL 复位 : GPIO7 (原厂内核串: "reset RTL8211+RTL8367SB")
+ *
+ * Flash 布局（Breed 公版 0x50000）:
+ *   0x000000 - 0x030000  Breed 引导 / u-boot  (read-only)
+ *   0x030000 - 0x050000  config / factory     (read-only, 当前为空/FF)
+ *   0x050000 - 0x1000000 firmware (uImage + squashfs)
+ *
+ * 说明: 原厂固件只管理 MT7530 的 5 个口，RTL8367SB 由闭源驱动留在
+ * "非管理型交换机" 默认状态，其 CPU 口以 PHY 方式连到 MT7530 的一个口。
+ * 本 DTS 不碰 RTL（不复位 GPIO7），保持其出厂默认转发行为。
+ */
+
+#include "mt7621.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
+
+/ {
+	compatible = "tg,rn1150w", "mediatek,mt7621-soc";
+	model = "TG RN1150W";
+
+	aliases {
+		label-mac-device = &gmac0;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x20000000>;		/* 512 MiB */
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <44000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0 0x30000>;
+				read-only;
+			};
+
+			partition@30000 {
+				label = "config";
+				reg = <0x30000 0x20000>;
+				read-only;
+			};
+
+			partition@50000 {
+				label = "firmware";
+				reg = <0x50000 0xfb0000>;
+				compatible = "denx,uimage";
+			};
+		};
+	};
+};
+
+&gmac0 {
+	/* 原机 LAN MAC（EEPROM 为空，这里写死保证 MAC 稳定） */
+	mac-address = [06 15 75 01 33 22];
+};
+
+&gmac1 {
+	status = "disabled";
+};
+
+&pcie {
+	status = "disabled";
+};

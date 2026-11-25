@@ -1,0 +1,32 @@
+name: publish-firmware
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: 从指定 run 下载固件 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rn1150w-firmware
+          run-id: 45380033070
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: fw
+
+      - name: 列出文件
+        run: find fw -type f -printf '%s %p\n'
+
+      - name: 发布为 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete fw-bfe0662 --yes 2>/dev/null || true
+          gh release create fw-bfe0662 \
+            --title "RN1150W OpenWrt 24.10 (bfe0662)" \
+            --notes "firmware partition fix + GPIO7 mux fix" \
+            $(find fw -type f -name '*.bin' -o -type f -name '*.manifest')

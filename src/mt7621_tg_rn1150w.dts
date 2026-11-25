@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // TG RN1150W / "MT7621 千兆有线路由器" 8 口白牌机
-// MT7621AT + MT7530(内部 5 口) + RTL8367SB(外挂 3 口, RGMII 级联)
+// MT7621AT + MT7530(内部 5 个 PHY) + RTL8367SB(外挂 4 口)
 // RTL8367SB 复位脚 = GPIO7 (厂商内核: "GPIO7 set to high / clear to low")
 //
-// v1: 只驱动 MT7530, 把 5 个 PHY 口 + port5(RGMII 级联口) 全部放进 br-lan,
-//     RTL8367SB 保持出厂默认的"非管理型交换机"状态 -> 它的 3 个口作为
-//     lan6 所在的级联段一起接入同一个二层域。
+// v2 (8 口实测后修正): RTL8367SB 级联在 MT7530 的 PHY0 (lan1) 上, 不是 port5。
+//     面板 1..4 = lan5/lan4/lan3/lan2 (MT7530 直连)
+//     面板 5..8 = lan1 (RTL 的 4 个口共用这条 1G 上行)
+//     RTL8367SB 保持出厂非管理型交换机状态, 只由 GPIO7 释放复位。
+//     port5 为幽灵口, 保持 disabled。
 
 #include "mt7621.dtsi"
 
@@ -120,18 +122,13 @@
 			label = "lan5";
 		};
 
-		/* port5 是 MT7530 的第二个 GMAC(RGMII), 厂商用它级联 RTL8367SB。
-		 * RTL 那边的 3 个 RJ45 就挂在这个口的后面。 */
+		/* port5 (MT7530 第二个 GMAC) 实测未使用: 8 口实测证明 RTL8367SB
+		 * 是级联在 PHY0 (lan1) 上的, 面板 5/6/7/8 = RTL 的 4 个口, 共享
+		 * lan1 这条 1G 上行。port5 保持 disabled, 不再暴露幽灵接口 lan6。 */
 		port@5 {
-			status = "okay";
+			status = "disabled";
 			reg = <5>;
 			label = "lan6";
-			phy-mode = "rgmii";
-			fixed-link {
-				speed = <1000>;
-				full-duplex;
-				pause;
-			};
 		};
 	};
 };

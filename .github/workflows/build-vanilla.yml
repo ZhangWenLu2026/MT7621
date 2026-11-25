@@ -3,7 +3,9 @@ name: build-openwrt-rn1150w-vanilla
 # 原版/标准版：只用官方 24.10 源码 + 本机必需的 DTS，不叠加任何自定义脚本，
 # 让 OpenWrt 用它自己的默认配置跑起来（默认就会把 lan1..lan5 桥进 br-lan，
 # 默认开 DHCP 服务，地址 192.168.1.1）。
-# 额外只加了排查用的工具：tcpdump / iperf3 / ethtool / ip-full / nlbwmon。
+# 只额外加了排查/观测工具：tcpdump / iperf3 / ethtool / ip-full /
+# nlbwmon（按 IP 流量排行）/ collectd + LuCI 统计图表（可长期记录 CPU、流量、
+# 对相机的 ping 丢包）/ luci-app-commands（网页执行命令）。
 
 on:
   workflow_dispatch:
@@ -63,10 +65,24 @@ jobs:
           CONFIG_PACKAGE_ip-full=y
           CONFIG_PACKAGE_nlbwmon=y
           CONFIG_PACKAGE_luci-app-nlbwmon=y
+          CONFIG_PACKAGE_collectd=y
+          CONFIG_PACKAGE_collectd-mod-cpu=y
+          CONFIG_PACKAGE_collectd-mod-interface=y
+          CONFIG_PACKAGE_collectd-mod-iwinfo=y
+          CONFIG_PACKAGE_collectd-mod-load=y
+          CONFIG_PACKAGE_collectd-mod-memory=y
+          CONFIG_PACKAGE_collectd-mod-ping=y
+          CONFIG_PACKAGE_collectd-mod-uptime=y
+          CONFIG_PACKAGE_luci-app-statistics=y
+          CONFIG_PACKAGE_luci-app-commands=y
           EOF
           make defconfig
-          grep -E "^CONFIG_PACKAGE_(luci|tcpdump|iperf3)=" .config || true
+          grep -E "^CONFIG_PACKAGE_(luci|tcpdump|iperf3|collectd|nlbwmon)=" .config || true
           grep -q '^CONFIG_PACKAGE_luci=y' .config || { echo "ERROR: luci 没有进 .config"; exit 1; }
+          for p in luci-app-statistics luci-app-commands collectd-mod-ping nlbwmon iperf3 tcpdump; do
+            grep -q "^CONFIG_PACKAGE_$p=y" .config || { echo "ERROR: $p 没有进 .config"; exit 1; }
+          done
+          echo "OK: 工具包全部就位"
 
       - name: 下载源码包
         run: |
@@ -81,7 +97,12 @@ jobs:
       - name: 列出产物
         run: |
           ls -l owwrt/bin/targets/ramips/mt7621/
-          cat owwrt/bin/targets/ramips/mt7621/*tg_rn1150w.manifest | wc -l
+          M=owwrt/bin/targets/ramips/mt7621/*tg_rn1150w.manifest
+          echo "包数量: $(cat $M | wc -l)"
+          for p in luci-app-statistics luci-app-commands collectd-mod-ping nlbwmon tcpdump iperf3; do
+            grep -q "^$p " $M || { echo "ERROR: 固件里没有 $p"; exit 1; }
+          done
+          echo "OK: manifest 校验通过"
 
       - name: 上传固件
         uses: actions/upload-artifact@v4

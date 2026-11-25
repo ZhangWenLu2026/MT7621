@@ -47,4 +47,22 @@ uci -q commit system
 sleep 2
 /etc/init.d/dnsmasq restart
 
+# 本机只当交换机用，没有 WAN 出口，IPv6 的 RA/DHCPv6 只会让设备拿到一个
+# "解析不了任何域名" 的 IPv6 DNS，导致设备疯狂重试（实测 300 pps / 200kbps）。
+uci -q set dhcp.lan.ra='disabled'
+uci -q set dhcp.lan.dhcpv6='disabled'
+uci -q set dhcp.lan.ndp='disabled'
+uci -q commit dhcp
+
+# 更进一步：整个设备关掉 IPv6（含链路本地 fe80::），odhcpd 也停掉。
+# 这样局域网里不会再有任何 IPv6 DNS 可指，彻底断掉这条噪声路径。
+grep -q 'disable_ipv6' /etc/sysctl.conf 2>/dev/null || cat >> /etc/sysctl.conf <<'EOF'
+net.ipv6.conf.all.disable_ipv6=1
+net.ipv6.conf.default.disable_ipv6=1
+EOF
+sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>&1
+sysctl -w net.ipv6.conf.default.disable_ipv6=1 >/dev/null 2>&1
+/etc/init.d/odhcpd disable
+/etc/init.d/odhcpd stop
+
 exit 0

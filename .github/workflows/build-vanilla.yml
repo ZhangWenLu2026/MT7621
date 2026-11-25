@@ -48,6 +48,18 @@ jobs:
         run: |
           cp src/mt7621_tg_rn1150w.dts owwrt/target/linux/ramips/dts/
           cat src/mt7621.mk.append >> owwrt/target/linux/ramips/image/mt7621.mk
+          # 官方 02_network 的兜底分支把 lan1-lan4 当 LAN、"wan" 当 WAN，
+          # 本机的第 5 个口 lan5 会掉队（实测 br-lan 里只有 lan1..lan4）。
+          # 给本机型补一条：5 个口全部当 LAN。
+          python3 - <<'PY'
+          p = 'owwrt/target/linux/ramips/base-files/etc/board.d/02_network'
+          s = open(p).read()
+          start = s.index('ramips_setup_interfaces() {')
+          i = s.index('\n\t*)\n', start)
+          ins = '\n\ttg,rn1150w)\n\t\tucidef_set_interface_lan "lan1 lan2 lan3 lan4 lan5"\n\t\t;;'
+          open(p, 'w').write(s[:i] + ins + s[i:])
+          PY
+          grep -A2 'tg,rn1150w)' owwrt/target/linux/ramips/base-files/etc/board.d/02_network
           cd owwrt
           cat > .config <<'EOF'
           CONFIG_TARGET_ramips=y

@@ -4,7 +4,7 @@ name: publish-firmware
 # 触发：build 流程跑完之后自动发布；也可以手动指定 run_id
 on:
   workflow_run:
-    workflows: ["build-openwrt-rn1150w"]
+    workflows: ["build-openwrt-rn1150w", "build-openwrt-rn1150w-vanilla"]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -26,8 +26,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id || '45517525047' }}
+          ART: ${{ github.event.workflow_run.name == 'build-openwrt-rn1150w-vanilla' && 'rn1150w-vanilla' || 'rn1150w-firmware' }}
         run: |
-          gh run download "$RUN_ID" -n rn1150w-firmware -D out --repo "${{ github.repository }}"
+          gh run download "$RUN_ID" -n "$ART" -D out --repo "${{ github.repository }}"
           echo "--- files ---"
           find out -type f -printf '%p  %s bytes\n'
 
@@ -35,10 +36,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id || '45517525047' }}
+          KIND: ${{ github.event.workflow_run.name == 'build-openwrt-rn1150w-vanilla' && 'vanilla' || 'luci' }}
         run: |
-          TAG="fw-luci-${RUN_ID}"
+          TAG="fw-${KIND}-${RUN_ID}"
           gh release delete "$TAG" --yes --repo "${{ github.repository }}" || true
           gh release create "$TAG" $(find out -type f) \
             --repo "${{ github.repository }}" \
-            --title "OpenWrt 24.10 LuCI - $RUN_ID" \
+            --title "OpenWrt 24.10 ${KIND} - $RUN_ID" \
             --notes "由 build run $RUN_ID 的 artifact 自动发布。刷机用 *-squashfs-sysupgrade.bin。"

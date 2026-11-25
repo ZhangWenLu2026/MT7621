@@ -1,0 +1,42 @@
+name: publish-firmware
+
+# 作用：把某次 build 的 artifact 挂到 Release 上，这样不用登录 GitHub 也能直接下载固件
+on:
+  push:
+    paths:
+      - .github/workflows/release.yml
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: '要发布的 build run id'
+        required: false
+        default: '45517525047'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 下载 artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id || '45517525047' }}
+        run: |
+          gh run download "$RUN_ID" -n rn1150w-firmware -D out --repo "${{ github.repository }}"
+          echo "--- files ---"
+          find out -type f -printf '%p  %s bytes\n'
+
+      - name: 创建 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id || '45517525047' }}
+        run: |
+          TAG="fw-luci-${RUN_ID}"
+          gh release delete "$TAG" --yes --repo "${{ github.repository }}" || true
+          gh release create "$TAG" $(find out -type f) \
+            --repo "${{ github.repository }}" \
+            --title "OpenWrt 24.10 LuCI - $RUN_ID" \
+            --notes "由 build run $RUN_ID 的 artifact 自动发布。刷机用 *-squashfs-sysupgrade.bin。"

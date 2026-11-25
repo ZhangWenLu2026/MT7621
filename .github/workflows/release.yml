@@ -1,10 +1,11 @@
 name: publish-firmware
 
-# 作用：把某次 build 的 artifact 挂到 Release 上，这样不用登录 GitHub 也能直接下载固件
+# 作用：把 build 的 artifact 挂到 Release 上，这样不用登录 GitHub 也能直接下载固件
+# 触发：build 流程跑完之后自动发布；也可以手动指定 run_id
 on:
-  push:
-    paths:
-      - .github/workflows/release.yml
+  workflow_run:
+    workflows: ["build-openwrt-rn1150w"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       run_id:
@@ -18,12 +19,13 @@ permissions:
 
 jobs:
   release:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: 下载 artifact
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ inputs.run_id || '45517525047' }}
+          RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id || '45517525047' }}
         run: |
           gh run download "$RUN_ID" -n rn1150w-firmware -D out --repo "${{ github.repository }}"
           echo "--- files ---"
@@ -32,7 +34,7 @@ jobs:
       - name: 创建 Release
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ inputs.run_id || '45517525047' }}
+          RUN_ID: ${{ github.event.workflow_run.id || inputs.run_id || '45517525047' }}
         run: |
           TAG="fw-luci-${RUN_ID}"
           gh release delete "$TAG" --yes --repo "${{ github.repository }}" || true

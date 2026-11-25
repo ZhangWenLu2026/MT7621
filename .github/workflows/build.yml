@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'files/**'
+      - '.github/workflows/build.yml'
 
 jobs:
   build:

@@ -2,7 +2,9 @@
 #
 # TG RN1150W 首次启动配置（DSA 版）
 # MT7621 在 OpenWrt 24.10 用 DSA，不再有 swconfig 的 switch_vlan，
-# 直接把 DTS 里定义的 lan1..lan6 全部桥进 br-lan = 纯交换机模式。
+# 只把 MT7530 的 lan1..lan5 桥进 br-lan = 纯交换机模式。
+# lan6 是 RTL8367SB 的级联口（面板 6/7/8 号口），不加入网桥，
+# 这样那三个口不参与转发，避免误接。
 
 cat > /etc/config/network <<'EOF'
 config interface 'loopback'
@@ -22,7 +24,6 @@ config device
 	list ports 'lan3'
 	list ports 'lan4'
 	list ports 'lan5'
-	list ports 'lan6'
 
 config interface 'lan'
 	option device 'br-lan'

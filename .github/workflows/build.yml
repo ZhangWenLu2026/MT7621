@@ -32,9 +32,14 @@ jobs:
             gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev \
             python3-setuptools python3-dev rsync unzip zlib1g-dev file wget
 
-      - name: 拉取 OpenWrt 24.10
+      - name: 拉取 OpenWrt 24.10 + 安装 feeds
         run: |
           git clone --depth=1 -b openwrt-24.10 https://github.com/openwrt/openwrt.git owwrt
+          cd owwrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          echo "--- luci feed 已就位 ---"
+          ls feeds/luci/collections 2>/dev/null || true
 
       - name: 注入机型
         run: |
@@ -49,10 +54,17 @@ jobs:
           CONFIG_TARGET_ramips_mt7621_DEVICE_tg_rn1150w=y
           CONFIG_TARGET_MULTI_PROFILE=n
           CONFIG_PACKAGE_luci=y
+          CONFIG_PACKAGE_luci-app-firewall=y
           CONFIG_PACKAGE_luci-proto-ppp=y
+          CONFIG_PACKAGE_luci-i18n-base-zh-cn=y
+          CONFIG_PACKAGE_luci-i18n-firewall-zh-cn=y
+          CONFIG_PACKAGE_ethtool=y
           EOF
           make defconfig
-          grep -E "DEVICE_tg_rn1150w|PACKAGE_luci=" .config || true
+          echo "--- 关键包核对 ---"
+          grep -E "^CONFIG_PACKAGE_(luci|luci-app-firewall|luci-i18n-base-zh-cn)=" .config || true
+          grep -q '^CONFIG_PACKAGE_luci=y' .config || { echo "ERROR: luci 没有进 .config"; exit 1; }
+          echo "OK: luci 已启用"
 
       - name: 下载源码包
         run: |

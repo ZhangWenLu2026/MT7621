@@ -1,10 +1,12 @@
 #!/bin/sh
 #
 # TG RN1150W 首次启动配置（DSA 版）
-# MT7621 在 OpenWrt 24.10 用 DSA，不再有 swconfig 的 switch_vlan，
-# 只把 MT7530 的 lan1..lan5 桥进 br-lan = 纯交换机模式。
-# lan6 是 RTL8367SB 的级联口（面板 6/7/8 号口），不加入网桥，
-# 这样那三个口不参与转发，避免误接。
+# MT7621 在 OpenWrt 24.10 用 DSA，不再有 swconfig 的 switch_vlan。
+# 实测拓扑（两台机器都验证过）：
+#   面板 1/2/3/4 号 = MT7530 的 lan5/lan4/lan3/lan2（直连，非阻塞）
+#   面板 5/6/7/8 号 = RTL8367SB 的 4 个口，共用 MT7530 PHY0 (lan1) 这条 1G 上行
+# 所以把 lan1..lan5 桥进 br-lan，8 个物理口全部可用。
+# lan6 是 MT7530 port5 的幽灵接口，没有实际连接，不加入网桥。
 
 cat > /etc/config/network <<'EOF'
 config interface 'loopback'
@@ -39,5 +41,10 @@ uci -q commit system
 
 # 让上面的配置立即生效（首次启动时会短暂断网一次）
 /etc/init.d/network restart
+
+# 首次启动时 dnsmasq 可能早于 br-lan 就绪，生成出来的配置里没有 dhcp-range，
+# 结果只能当 DNS、不发 IP（必须手动重启 dnsmasq 才恢复）。这里强制重启一次。
+sleep 2
+/etc/init.d/dnsmasq restart
 
 exit 0

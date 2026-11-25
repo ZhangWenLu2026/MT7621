@@ -6,6 +6,7 @@ define Device/tg_rn1150w
   DEVICE_ALT0_MODEL := MT7621 8-port switch
   DEVICE_DTS := mt7621_tg_rn1150w
   SUPPORTED_DEVICES += tg_rn1150w
+  DEVICE_PACKAGES := luci-i18n-base-zh-cn luci-i18n-firewall-zh-cn
   IMAGE_SIZE := 16064k
 endef
 TARGET_DEVICES += tg_rn1150w

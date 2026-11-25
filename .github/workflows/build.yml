@@ -77,7 +77,11 @@ jobs:
           make -j$(nproc) V=s
 
       - name: 列出产物
-        run: ls -l owwrt/bin/targets/ramips/mt7621/
+        run: |
+          ls -l owwrt/bin/targets/ramips/mt7621/
+          grep -q 'luci-i18n-base-zh-cn' owwrt/bin/targets/ramips/mt7621/*tg_rn1150w.manifest \
+            || { echo "ERROR: 中文语言包没有进固件"; exit 1; }
+          echo "OK: 中文语言包已包含"
 
       - name: 上传固件
         uses: actions/upload-artifact@v4
